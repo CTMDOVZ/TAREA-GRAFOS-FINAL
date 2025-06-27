@@ -1,147 +1,142 @@
-//
-// Created by juan-diego on 3/29/24.
-//
+#ifndef PATH_FINDING_MANAGER_H
+#define PATH_FINDING_MANAGER_H
 
-#ifndef HOMEWORK_GRAPH_PATH_FINDING_MANAGER_H
-#define HOMEWORK_GRAPH_PATH_FINDING_MANAGER_H
-
-
-#include "window_manager.h"
-#include "graph.h"
+#include <vector>
 #include <unordered_map>
-#include <set>
+#include <queue>
+#include <limits>
+#include <cmath>
+#include <iostream>
+#include <SFML/Graphics.hpp>
+#include "node.h"
+#include "edge.h"
+#include "graph.h"
+#include "window_manager.h"
 
-
-// Este enum sirve para identificar el algoritmo que el usuario desea simular
 enum Algorithm {
-    None,
     Dijkstra,
-    AStar
+    AStar,
+    Greedy
 };
 
-
-//* --- PathFindingManager ---
-//
-// Esta clase sirve para realizar las simulaciones de nuestro grafo.
-//
-// Variables miembro
-//     - path           : Contiene el camino resultante del algoritmo que se desea simular
-//     - visited_edges  : Contiene todas las aristas que se visitaron en el algoritmo, notar que 'path'
-//                        es un subconjunto de 'visited_edges'.
-//     - window_manager : Instancia del manejador de ventana, es utilizado para dibujar cada paso del algoritmo
-//     - src            : Nodo incial del que se parte en el algoritmo seleccionado
-//     - dest           : Nodo al que se quiere llegar desde 'src'
-//*
 class PathFindingManager {
-    WindowManager *window_manager;
-    std::vector<sfLine> path;
-    std::vector<sfLine> visited_edges;
-
-    struct Entry {
-        Node* node;
-        double dist;
-
-        bool operator < (const Entry& other) const {
-            return dist < other.dist;
-        }
-    };
-
-    void dijkstra(Graph &graph) {
-        std::unordered_map<Node *, Node *> parent;
-        // TODO: Add your code here
-
-        set_final_path(parent);
-    }
-
-    void a_star(Graph &graph) {
-        std::unordered_map<Node *, Node *> parent;
-        // TODO: Add your code here
-
-        set_final_path(parent);
-    }
-
-    //* --- render ---
-    // En cada iteración de los algoritmos esta función es llamada para dibujar los cambios en el 'window_manager'
-    void render() {
-        sf::sleep(sf::milliseconds(10));
-        // TODO: Add your code here
-    }
-
-    //* --- set_final_path ---
-    // Esta función se usa para asignarle un valor a 'this->path' al final de la simulación del algoritmo.
-    // 'parent' es un std::unordered_map que recibe un puntero a un vértice y devuelve el vértice anterior a el,
-    // formando así el 'path'.
-    //
-    // ej.
-    //     parent(a): b
-    //     parent(b): c
-    //     parent(c): d
-    //     parent(d): NULL
-    //
-    // Luego, this->path = [Line(a.coord, b.coord), Line(b.coord, c.coord), Line(c.coord, d.coord)]
-    //
-    // Este path será utilizado para hacer el 'draw()' del 'path' entre 'src' y 'dest'.
-    //*
-    void set_final_path(std::unordered_map<Node *, Node *> &parent) {
-        Node* current = dest;
-
-        // TODO: Add your code here
-    }
-
 public:
-    Node *src = nullptr;
-    Node *dest = nullptr;
+    PathFindingManager(WindowManager* wm) : window_manager(wm), src(nullptr), dest(nullptr) {}
 
-    explicit PathFindingManager(WindowManager *window_manager) : window_manager(window_manager) {}
-
-    void exec(Graph &graph, Algorithm algorithm) {
-        if (src == nullptr || dest == nullptr) {
-            return;
+    void set_source(Node* node) {
+        if (src) {
+            src->radius = 2.0f;
+            src->color = sf::Color::White;
         }
+        src = node;
+        if (src) {
+            src->radius = 10.0f;
+            src->color = sf::Color::Green;
+        }
+    }
 
-        // TODO: Add your code here
+    void set_destination(Node* node) {
+        if (dest) {
+            dest->radius = 2.0f;
+            dest->color = sf::Color::White;
+        }
+        dest = node;
+        if (dest) {
+            dest->radius = 10.0f;
+            dest->color = sf::Color::Cyan;
+        }
+    }
+
+    void exec(Graph& graph, Algorithm algo) {
+        if (src == nullptr || dest == nullptr) return;
+
+        visited_edges.clear();
+        path.clear();
+
+        switch (algo) {
+            case Dijkstra:
+                dijkstra(graph);
+                break;
+            case AStar:
+                a_star(graph);
+                break;
+            case Greedy:
+                greedy(graph);
+                break;
+        }
+    }
+
+    void draw(bool show_visited_edges) {
+        sf::RenderWindow& window = window_manager->get_window();
+        if (show_visited_edges) {
+            for (auto& line : visited_edges)
+                window.draw(line);
+        }
+        for (auto& line : path)
+            window.draw(line);
     }
 
     void reset() {
-        path.clear();
-        visited_edges.clear();
-
         if (src) {
-            src->reset();
-            src = nullptr;
-            // ^^^ Pierde la referencia luego de restaurarlo a sus valores por defecto
+            src->radius = 2.0f;
+            src->color = sf::Color::White;
         }
         if (dest) {
-            dest->reset();
-            dest = nullptr;
-            // ^^^ Pierde la referencia luego de restaurarlo a sus valores por defecto
+            dest->radius = 2.0f;
+            dest->color = sf::Color::White;
         }
+        src = nullptr;
+        dest = nullptr;
+        path.clear();
+        visited_edges.clear();
     }
 
-    void draw(bool draw_extra_lines) {
-        // Dibujar todas las aristas visitadas
-        if (draw_extra_lines) {
-            for (sfLine &line: visited_edges) {
-                line.draw(window_manager->get_window(), sf::RenderStates::Default);
-            }
+    Node* src = nullptr;
+    Node* dest = nullptr;
+
+private:
+    WindowManager* window_manager;
+    std::vector<sf::VertexArray> path;
+    std::vector<sf::VertexArray> visited_edges;
+
+    float heuristic(Node* a, Node* b) {
+        float dx = a->coord.x - b->coord.x;
+        float dy = a->coord.y - b->coord.y;
+        return std::sqrt(dx * dx + dy * dy);
+    }
+
+    void draw_edge(Node* from, Node* to, sf::Color color) {
+        if (!from || !to) return;
+        sf::VertexArray line(sf::Lines, 2);
+        line[0].position = from->coord;
+        line[1].position = to->coord;
+        line[0].color = color;
+        line[1].color = color;
+        visited_edges.push_back(line);
+    }
+
+    void set_final_path(const std::unordered_map<Node*, Node*>& prev) {
+        if (!dest || prev.find(dest) == prev.end()) {
+            std::cout << "⚠️ No se encontró camino (prev no contiene a destino).\n";
+            return;
         }
 
-        // Dibujar el camino resultante entre 'str' y 'dest'
-        for (sfLine &line: path) {
-            line.draw(window_manager->get_window(), sf::RenderStates::Default);
+        Node* current = dest;
+
+        while (current && prev.find(current) != prev.end() && prev.at(current) != nullptr) {
+            Node* from = prev.at(current);
+            sf::VertexArray line(sf::Lines, 2);
+            line[0].position = from->coord;
+            line[1].position = current->coord;
+            line[0].color = sf::Color::Magenta;
+            line[1].color = sf::Color::Magenta;
+            path.push_back(line);
+            current = from;
         }
 
-        // Dibujar el nodo inicial
-        if (src != nullptr) {
-            src->draw(window_manager->get_window());
-        }
-
-        // Dibujar el nodo final
-        if (dest != nullptr) {
-            dest->draw(window_manager->get_window());
+        if (path.empty()) {
+            std::cout << "⚠️ No se encontró camino.\n";
+        } else {
+            std::cout << "✅ Camino construido con " << path.size() << " segmentos.\n";
         }
     }
-};
-
-
-#endif //HOMEWORK_GRAPH_PATH_FINDING_MANAGER_H
