@@ -1,3 +1,4 @@
+
 #ifndef PATH_FINDING_MANAGER_H
 #define PATH_FINDING_MANAGER_H
 
@@ -139,4 +140,37 @@ private:
         } else {
             std::cout << "✅ Camino construido con " << path.size() << " segmentos.\n";
         }
+    }
+
+
+    void dijkstra(Graph& graph) {
+        std::priority_queue<std::pair<float, Node*>, std::vector<std::pair<float, Node*>>, std::greater<>> pq;
+        std::unordered_map<Node*, float> dist;
+        std::unordered_map<Node*, Node*> prev;
+
+        for (auto& pair : graph.nodes) {
+            dist[pair.second] = std::numeric_limits<float>::infinity();
+            prev[pair.second] = nullptr;
+        }
+
+        dist[src] = 0.0f;
+        pq.push({0.0f, src});
+
+        while (!pq.empty()) {
+            auto [cost, u] = pq.top();
+            pq.pop();
+
+            for (Edge* edge : u->edges) {
+                Node* v = edge->dest;
+                float alt = dist[u] + edge->length;
+                if (alt < dist[v]) {
+                    dist[v] = alt;
+                    prev[v] = u;
+                    pq.push({alt, v});
+                    draw_edge(u, v, sf::Color::Yellow);
+                }
+            }
+        }
+
+        set_final_path(prev);
     }
