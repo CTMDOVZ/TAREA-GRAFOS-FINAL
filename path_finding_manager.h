@@ -1,4 +1,3 @@
-
 #ifndef PATH_FINDING_MANAGER_H
 #define PATH_FINDING_MANAGER_H
 
@@ -142,7 +141,7 @@ private:
         }
     }
 
-
+    // ✅ COMMIT 2: Implementación del algoritmo Dijkstra
     void dijkstra(Graph& graph) {
         std::priority_queue<std::pair<float, Node*>, std::vector<std::pair<float, Node*>>, std::greater<>> pq;
         std::unordered_map<Node*, float> dist;
@@ -168,6 +167,39 @@ private:
                     prev[v] = u;
                     pq.push({alt, v});
                     draw_edge(u, v, sf::Color::Yellow);
+                }
+            }
+        }
+
+        set_final_path(prev);
+    }
+
+    // ✅ COMMIT 3: Implementación del algoritmo Greedy Best First
+    void greedy(Graph& graph) {
+        auto cmp = [&](Node* a, Node* b) {
+            return heuristic(a, dest) > heuristic(b, dest);
+        };
+
+        std::priority_queue<Node*, std::vector<Node*>, decltype(cmp)> open(cmp);
+        std::unordered_map<Node*, Node*> prev;
+        std::unordered_map<Node*, bool> visited;
+
+        open.push(src);
+        visited[src] = true;
+
+        while (!open.empty()) {
+            Node* current = open.top();
+            open.pop();
+
+            if (current == dest) break;
+
+            for (Edge* edge : current->edges) {
+                Node* neighbor = edge->dest;
+                if (!visited[neighbor]) {
+                    visited[neighbor] = true;
+                    prev[neighbor] = current;
+                    open.push(neighbor);
+                    draw_edge(current, neighbor, sf::Color::Cyan);
                 }
             }
         }
