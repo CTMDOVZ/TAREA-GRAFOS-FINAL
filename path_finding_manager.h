@@ -1,3 +1,4 @@
+
 #ifndef PATH_FINDING_MANAGER_H
 #define PATH_FINDING_MANAGER_H
 
@@ -141,7 +142,6 @@ private:
         }
     }
 
-    // ✅ COMMIT 2: Implementación del algoritmo Dijkstra
     void dijkstra(Graph& graph) {
         std::priority_queue<std::pair<float, Node*>, std::vector<std::pair<float, Node*>>, std::greater<>> pq;
         std::unordered_map<Node*, float> dist;
@@ -174,7 +174,6 @@ private:
         set_final_path(prev);
     }
 
-    // ✅ COMMIT 3: Implementación del algoritmo Greedy Best First
     void greedy(Graph& graph) {
         auto cmp = [&](Node* a, Node* b) {
             return heuristic(a, dest) > heuristic(b, dest);
@@ -206,3 +205,58 @@ private:
 
         set_final_path(prev);
     }
+
+    void a_star(Graph& graph) {
+        auto cmp = [](const std::pair<float, Node*>& a, const std::pair<float, Node*>& b) {
+            return a.first > b.first;
+        };
+
+        std::priority_queue<std::pair<float, Node*>, std::vector<std::pair<float, Node*>>, decltype(cmp)> open(cmp);
+        std::unordered_map<Node*, float> g_score;
+        std::unordered_map<Node*, float> f_score;
+        std::unordered_map<Node*, Node*> prev;
+
+        for (auto& [_, node] : graph.nodes) {
+            g_score[node] = std::numeric_limits<float>::infinity();
+            f_score[node] = std::numeric_limits<float>::infinity();
+        }
+
+        if (!src || !dest) return;
+
+        g_score[src] = 0.0f;
+        f_score[src] = heuristic(src, dest);
+        open.push({f_score[src], src});
+        prev[src] = nullptr;
+
+        while (!open.empty()) {
+            Node* current = open.top().second;
+            open.pop();
+
+            if (!current) continue;
+            if (current == dest) break;
+
+            for (Edge* edge : current->edges) {
+                if (!edge || !edge->dest) continue;
+
+                Node* neighbor = edge->dest;
+                float tentative_g = g_score[current] + edge->length;
+
+                if (tentative_g < g_score[neighbor]) {
+                    prev[neighbor] = current;
+                    g_score[neighbor] = tentative_g;
+                    f_score[neighbor] = tentative_g + heuristic(neighbor, dest);
+                    open.push({f_score[neighbor], neighbor});
+                    draw_edge(current, neighbor, sf::Color::Blue);
+                }
+            }
+        }
+
+        if (prev.find(dest) != prev.end()) {
+            set_final_path(prev);
+        } else {
+            std::cout << "⚠️ No se encontró camino (destino inalcanzable).\n";
+        }
+    }
+};
+
+#endif
